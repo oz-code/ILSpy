@@ -244,12 +244,12 @@ namespace ICSharpCode.Decompiler.TypeSystem
 			// Primitive types are necessary to avoid assertions in ILReader.
 			// Other known types are necessary in order for transforms to work (e.g. Task<T> for async transform).
 			// Figure out which known types are missing from our type system so far:
-			var missingKnownTypes = KnownTypeReference.AllKnownTypes.Where(IsMissing).ToList();
-			if (missingKnownTypes.Count > 0)
-			{
-				Init(mainModule.WithOptions(typeSystemOptions), referencedAssembliesWithOptions.Concat(new[] { MinimalCorlib.CreateWithTypes(missingKnownTypes) }));
-			}
-			else
+			// var missingKnownTypes = KnownTypeReference.AllKnownTypes.Where(IsMissing).ToList();
+			// if (missingKnownTypes.Count > 0)
+			// {
+			// 	Init(mainModule.WithOptions(typeSystemOptions), referencedAssembliesWithOptions.Concat(new[] { MinimalCorlib.CreateWithTypes(missingKnownTypes) }));
+			// }
+			// else
 			{
 				Init(mainModuleWithOptions, referencedAssembliesWithOptions);
 			}
