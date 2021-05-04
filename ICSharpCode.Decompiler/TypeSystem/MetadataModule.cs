@@ -17,6 +17,7 @@
 // DEALINGS IN THE SOFTWARE.
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics;
@@ -44,11 +45,11 @@ namespace ICSharpCode.Decompiler.TypeSystem
 		internal readonly Nullability NullableContext;
 
 		readonly MetadataNamespace rootNamespace;
-		readonly MetadataTypeDefinition[] typeDefs;
-		readonly MetadataField[] fieldDefs;
-		readonly MetadataMethod[] methodDefs;
-		readonly MetadataProperty[] propertyDefs;
-		readonly MetadataEvent[] eventDefs;
+		readonly ConcurrentDictionary<int,MetadataTypeDefinition> typeDefs;
+		readonly ConcurrentDictionary<int,MetadataField> fieldDefs;
+		readonly ConcurrentDictionary<int,MetadataMethod> methodDefs;
+		readonly ConcurrentDictionary<int,MetadataProperty> propertyDefs;
+		readonly ConcurrentDictionary<int,MetadataEvent> eventDefs;
 		readonly IModule[] referencedAssemblies;
 
 		internal MetadataModule(ICompilation compilation, Metadata.PEFile peFile, TypeSystemOptions options)
@@ -80,11 +81,11 @@ namespace ICSharpCode.Decompiler.TypeSystem
 			if (!options.HasFlag(TypeSystemOptions.Uncached))
 			{
 				// create arrays for resolved entities, indexed by row index
-				this.typeDefs = new MetadataTypeDefinition[metadata.TypeDefinitions.Count + 1];
-				this.fieldDefs = new MetadataField[metadata.FieldDefinitions.Count + 1];
-				this.methodDefs = new MetadataMethod[metadata.MethodDefinitions.Count + 1];
-				this.propertyDefs = new MetadataProperty[metadata.PropertyDefinitions.Count + 1];
-				this.eventDefs = new MetadataEvent[metadata.EventDefinitions.Count + 1];
+				this.typeDefs = new ConcurrentDictionary<int, MetadataTypeDefinition>();
+				this.fieldDefs = new ConcurrentDictionary<int, MetadataField>();
+				this.methodDefs = new ConcurrentDictionary<int, MetadataMethod>();
+				this.propertyDefs = new ConcurrentDictionary<int, MetadataProperty>();
+				this.eventDefs = new ConcurrentDictionary<int, MetadataEvent>();
 				this.referencedAssemblies = new IModule[metadata.AssemblyReferences.Count + 1];
 			}
 		}
@@ -207,13 +208,13 @@ namespace ICSharpCode.Decompiler.TypeSystem
 			if (typeDefs == null)
 				return new MetadataTypeDefinition(this, handle);
 			int row = MetadataTokens.GetRowNumber(handle);
-			if (row >= typeDefs.Length)
+			if (row >= typeDefs.Count)
 				HandleOutOfRange(handle);
-			var typeDef = LazyInit.VolatileRead(ref typeDefs[row]);
-			if (typeDef != null)
+			
+			if (typeDefs.TryGetValue(row, out MetadataTypeDefinition typeDef))
 				return typeDef;
-			typeDef = new MetadataTypeDefinition(this, handle);
-			return LazyInit.GetOrSet(ref typeDefs[row], typeDef);
+			
+			return typeDefs[row] = new MetadataTypeDefinition(this, handle);
 		}
 
 		public IField GetDefinition(FieldDefinitionHandle handle)
@@ -223,13 +224,12 @@ namespace ICSharpCode.Decompiler.TypeSystem
 			if (fieldDefs == null)
 				return new MetadataField(this, handle);
 			int row = MetadataTokens.GetRowNumber(handle);
-			if (row >= fieldDefs.Length)
+			if (row >= fieldDefs.Count)
 				HandleOutOfRange(handle);
-			var field = LazyInit.VolatileRead(ref fieldDefs[row]);
-			if (field != null)
-				return field;
-			field = new MetadataField(this, handle);
-			return LazyInit.GetOrSet(ref fieldDefs[row], field);
+			
+			if (fieldDefs.TryGetValue(row, out MetadataField field)) return field;
+
+			return fieldDefs[row] = new MetadataField(this, handle);
 		}
 
 		public IMethod GetDefinition(MethodDefinitionHandle handle)
@@ -240,13 +240,14 @@ namespace ICSharpCode.Decompiler.TypeSystem
 				return new MetadataMethod(this, handle);
 			int row = MetadataTokens.GetRowNumber(handle);
 			Debug.Assert(row != 0);
-			if (row >= methodDefs.Length)
+			if (row >= methodDefs.Count)
 				HandleOutOfRange(handle);
-			var method = LazyInit.VolatileRead(ref methodDefs[row]);
-			if (method != null)
+			
+			 
+			if (methodDefs.TryGetValue(row, out MetadataMethod method))
 				return method;
-			method = new MetadataMethod(this, handle);
-			return LazyInit.GetOrSet(ref methodDefs[row], method);
+			
+			return methodDefs[row] = new MetadataMethod(this, handle);
 		}
 
 		public IProperty GetDefinition(PropertyDefinitionHandle handle)
@@ -257,13 +258,14 @@ namespace ICSharpCode.Decompiler.TypeSystem
 				return new MetadataProperty(this, handle);
 			int row = MetadataTokens.GetRowNumber(handle);
 			Debug.Assert(row != 0);
-			if (row >= methodDefs.Length)
+			if (row >= methodDefs.Count)
 				HandleOutOfRange(handle);
-			var property = LazyInit.VolatileRead(ref propertyDefs[row]);
-			if (property != null)
+
+			if (propertyDefs.TryGetValue(row, out MetadataProperty property))
 				return property;
-			property = new MetadataProperty(this, handle);
-			return LazyInit.GetOrSet(ref propertyDefs[row], property);
+					
+			return propertyDefs[row] = new MetadataProperty(this, handle);
+			
 		}
 
 		public IEvent GetDefinition(EventDefinitionHandle handle)
@@ -274,13 +276,13 @@ namespace ICSharpCode.Decompiler.TypeSystem
 				return new MetadataEvent(this, handle);
 			int row = MetadataTokens.GetRowNumber(handle);
 			Debug.Assert(row != 0);
-			if (row >= methodDefs.Length)
+			if (row >= methodDefs.Count)
 				HandleOutOfRange(handle);
-			var ev = LazyInit.VolatileRead(ref eventDefs[row]);
-			if (ev != null)
-				return ev;
-			ev = new MetadataEvent(this, handle);
-			return LazyInit.GetOrSet(ref eventDefs[row], ev);
+
+			if (eventDefs.TryGetValue(row, out MetadataEvent eventDef)) return eventDef;
+			
+			return eventDefs[row] = new MetadataEvent(this, handle);
+			
 		}
 
 		void HandleOutOfRange(EntityHandle handle)
