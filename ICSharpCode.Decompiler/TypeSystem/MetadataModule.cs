@@ -208,7 +208,7 @@ namespace ICSharpCode.Decompiler.TypeSystem
 			if (typeDefs == null)
 				return new MetadataTypeDefinition(this, handle);
 			int row = MetadataTokens.GetRowNumber(handle);
-			if (row >= typeDefs.Count)
+			if (row >= metadata.TypeDefinitions.Count + 1)
 				HandleOutOfRange(handle);
 			
 			if (typeDefs.TryGetValue(row, out MetadataTypeDefinition typeDef))
@@ -224,7 +224,7 @@ namespace ICSharpCode.Decompiler.TypeSystem
 			if (fieldDefs == null)
 				return new MetadataField(this, handle);
 			int row = MetadataTokens.GetRowNumber(handle);
-			if (row >= fieldDefs.Count)
+			if (row >= metadata.FieldDefinitions.Count + 1)
 				HandleOutOfRange(handle);
 			
 			if (fieldDefs.TryGetValue(row, out MetadataField field)) return field;
@@ -240,7 +240,7 @@ namespace ICSharpCode.Decompiler.TypeSystem
 				return new MetadataMethod(this, handle);
 			int row = MetadataTokens.GetRowNumber(handle);
 			Debug.Assert(row != 0);
-			if (row >= methodDefs.Count)
+			if (row >= metadata.MethodDefinitions.Count + 1)
 				HandleOutOfRange(handle);
 			
 			 
@@ -258,7 +258,7 @@ namespace ICSharpCode.Decompiler.TypeSystem
 				return new MetadataProperty(this, handle);
 			int row = MetadataTokens.GetRowNumber(handle);
 			Debug.Assert(row != 0);
-			if (row >= methodDefs.Count)
+			if (row >= metadata.PropertyDefinitions.Count + 1)
 				HandleOutOfRange(handle);
 
 			if (propertyDefs.TryGetValue(row, out MetadataProperty property))
@@ -276,7 +276,7 @@ namespace ICSharpCode.Decompiler.TypeSystem
 				return new MetadataEvent(this, handle);
 			int row = MetadataTokens.GetRowNumber(handle);
 			Debug.Assert(row != 0);
-			if (row >= methodDefs.Count)
+			if (row >= metadata.EventDefinitions.Count + 1)
 				HandleOutOfRange(handle);
 
 			if (eventDefs.TryGetValue(row, out MetadataEvent eventDef)) return eventDef;
