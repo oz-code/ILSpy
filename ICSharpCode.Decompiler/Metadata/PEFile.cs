@@ -133,7 +133,7 @@ namespace ICSharpCode.Decompiler.Metadata
 			if (lookup == null)
 			{
 				lookup = new Dictionary<string, Lazy<Dictionary<TopLevelTypeName, TypeDefinitionHandle>>>();
-				foreach (var nsHandle in Metadata.GetNamespaceDefinitionRoot().NamespaceDefinitions)
+				foreach (var nsHandle in GetNamespaceDefinitions())
 				{
 					string namespaceName = nsHandle.IsNil ? string.Empty : Metadata.GetString(nsHandle);
 
@@ -163,6 +163,26 @@ namespace ICSharpCode.Decompiler.Metadata
 			}
 			else
 				return default;
+		}
+
+		private IEnumerable<NamespaceDefinitionHandle> GetNamespaceDefinitions()
+		{
+			var root = Metadata.GetNamespaceDefinitionRoot();
+
+			return GetNamespaceDefinitionsInternal(root);
+		}
+
+		private IEnumerable<NamespaceDefinitionHandle> GetNamespaceDefinitionsInternal(NamespaceDefinition root)
+		{
+			foreach (var nsHandle in root.NamespaceDefinitions)
+			{
+				yield return nsHandle;
+				var nsDefinition = Metadata.GetNamespaceDefinition(nsHandle);
+				foreach ( var internalNs in GetNamespaceDefinitionsInternal(nsDefinition))
+				{
+					yield return internalNs;
+				}
+			}
 		}
 
 		Dictionary<FullTypeName, ExportedTypeHandle> typeForwarderLookup;
