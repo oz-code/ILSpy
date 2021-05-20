@@ -121,35 +121,68 @@ namespace ICSharpCode.Decompiler.Metadata
 			Reader.Dispose();
 		}
 
-		Dictionary<TopLevelTypeName, TypeDefinitionHandle> typeLookup;
+		Dictionary<string, Lazy<Dictionary<TopLevelTypeName, TypeDefinitionHandle>>> typeLookupByNamespace;
 
 		/// <summary>
 		/// Finds the top-level-type with the specified name.
 		/// </summary>
 		public TypeDefinitionHandle GetTypeDefinition(TopLevelTypeName typeName)
 		{
-			var lookup = LazyInit.VolatileRead(ref typeLookup);
+
+			var lookup = LazyInit.VolatileRead(ref typeLookupByNamespace);
 			if (lookup == null)
 			{
-				lookup = new Dictionary<TopLevelTypeName, TypeDefinitionHandle>();
-				foreach (var handle in Metadata.TypeDefinitions)
+				lookup = new Dictionary<string, Lazy<Dictionary<TopLevelTypeName, TypeDefinitionHandle>>>();
+				foreach (var nsHandle in GetNamespaceDefinitions())
 				{
-					var td = Metadata.GetTypeDefinition(handle);
-					if (!td.GetDeclaringType().IsNil)
-					{
-						continue; // nested type
-					}
-					var nsHandle = td.Namespace;
-					string ns = nsHandle.IsNil ? string.Empty : Metadata.GetString(nsHandle);
-					string name = ReflectionHelper.SplitTypeParameterCountFromReflectionName(Metadata.GetString(td.Name), out int typeParameterCount);
-					lookup[new TopLevelTypeName(ns, name, typeParameterCount)] = handle;
+					string namespaceName = nsHandle.IsNil ? string.Empty : Metadata.GetString(nsHandle);
+
+					lookup[namespaceName] = new Lazy<Dictionary<TopLevelTypeName, TypeDefinitionHandle>>(() => {
+						var typeLookup = new Dictionary<TopLevelTypeName, TypeDefinitionHandle>();
+						var nsDefinition = Metadata.GetNamespaceDefinition(nsHandle);
+						foreach (var tdHandle in nsDefinition.TypeDefinitions)
+						{
+							var td = Metadata.GetTypeDefinition(tdHandle);
+							if (!td.GetDeclaringType().IsNil)
+							{
+								continue; // nested type
+							}
+							string name = ReflectionHelper.SplitTypeParameterCountFromReflectionName(Metadata.GetString(td.Name), out int typeParameterCount);
+							typeLookup[new TopLevelTypeName(namespaceName, name, typeParameterCount)] = tdHandle;
+						}
+						return typeLookup;
+					});
 				}
-				lookup = LazyInit.GetOrSet(ref typeLookup, lookup);
+
+				lookup = LazyInit.GetOrSet(ref typeLookupByNamespace, lookup);
 			}
-			if (lookup.TryGetValue(typeName, out var resultHandle))
-				return resultHandle;
+			if (lookup.TryGetValue(typeName.Namespace, out var typeDict))
+			{
+				typeDict.Value.TryGetValue(typeName, out var result);
+				return result; 
+			}
 			else
 				return default;
+		}
+
+		private IEnumerable<NamespaceDefinitionHandle> GetNamespaceDefinitions()
+		{
+			var root = Metadata.GetNamespaceDefinitionRoot();
+
+			return GetNamespaceDefinitionsInternal(root);
+		}
+
+		private IEnumerable<NamespaceDefinitionHandle> GetNamespaceDefinitionsInternal(NamespaceDefinition root)
+		{
+			foreach (var nsHandle in root.NamespaceDefinitions)
+			{
+				yield return nsHandle;
+				var nsDefinition = Metadata.GetNamespaceDefinition(nsHandle);
+				foreach ( var internalNs in GetNamespaceDefinitionsInternal(nsDefinition))
+				{
+					yield return internalNs;
+				}
+			}
 		}
 
 		Dictionary<FullTypeName, ExportedTypeHandle> typeForwarderLookup;

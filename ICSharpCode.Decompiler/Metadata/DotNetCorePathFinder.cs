@@ -70,7 +70,7 @@ namespace ICSharpCode.Decompiler.Metadata
 			"Microsoft.AspNetCore.All"
 		};
 
-		readonly DotNetCorePackageInfo[] packages;
+		readonly List<DotNetCorePackageInfo> packages;
 		readonly List<string> searchPaths = new List<string>();
 		readonly List<string> packageBasePaths = new List<string>();
 		readonly Version targetFrameworkVersion;
@@ -101,7 +101,7 @@ namespace ICSharpCode.Decompiler.Metadata
 			var depsJsonFileName = Path.Combine(basePath, $"{assemblyName}.deps.json");
 			if (File.Exists(depsJsonFileName))
 			{
-				packages = LoadPackageInfos(depsJsonFileName, targetFrameworkIdString).ToArray();
+				packages = LoadPackageInfos(depsJsonFileName, targetFrameworkIdString);
 
 				foreach (var path in LookupPaths)
 				{
@@ -170,13 +170,15 @@ namespace ICSharpCode.Decompiler.Metadata
 			return Path.Combine(dotnetBasePath, "packs", identifier + ".Ref", version.ToString(), "ref", identifierExt);
 		}
 
-		static IEnumerable<DotNetCorePackageInfo> LoadPackageInfos(string depsJsonFileName, string targetFramework)
+		static List<DotNetCorePackageInfo> LoadPackageInfos(string depsJsonFileName, string targetFramework)
 		{
-			var dependencies = JsonReader.Parse(File.ReadAllText(depsJsonFileName));
+			using var reader = File.OpenText(depsJsonFileName);
+			var dependencies = JsonReader.Parse(reader);
 			var runtimeInfos = dependencies["targets"][targetFramework].AsJsonObject;
 			var libraries = dependencies["libraries"].AsJsonObject;
 			if (runtimeInfos == null || libraries == null)
-				yield break;
+				return new List<DotNetCorePackageInfo>();
+			var result = new List<DotNetCorePackageInfo>(libraries.Count);
 			foreach (var library in libraries)
 			{
 				var type = library.Value["type"].AsString;
@@ -192,8 +194,9 @@ namespace ICSharpCode.Decompiler.Metadata
 						i++;
 					}
 				}
-				yield return new DotNetCorePackageInfo(library.Key, type, path, components);
+				result.Add(new DotNetCorePackageInfo(library.Key, type, path, components));
 			}
+			return result;
 		}
 
 		public string TryResolveDotNetCoreShared(IAssemblyReference name, out string runtimePack)

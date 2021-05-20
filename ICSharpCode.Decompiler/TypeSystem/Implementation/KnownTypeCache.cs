@@ -16,6 +16,9 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
+using System;
+using System.Linq;
+
 using ICSharpCode.Decompiler.Util;
 
 namespace ICSharpCode.Decompiler.TypeSystem.Implementation
@@ -49,13 +52,19 @@ namespace ICSharpCode.Decompiler.TypeSystem.Implementation
 			if (typeRef == null)
 				return SpecialType.UnknownType;
 			var typeName = new TopLevelTypeName(typeRef.Namespace, typeRef.Name, typeRef.TypeParameterCount);
-			foreach (IModule asm in compilation.Modules)
+			foreach (IModule asm in compilation.Modules.OrderBy(m => IsCorLibAssembly(m) ? 1 : 2))
 			{
 				var typeDef = asm.GetTypeDefinition(typeName);
 				if (typeDef != null)
 					return typeDef;
 			}
 			return new UnknownType(typeName);
+		}
+
+		private bool IsCorLibAssembly(IModule m)
+		{
+			return string.Equals(m.Name, "System.Private.CoreLib", StringComparison.InvariantCultureIgnoreCase) || 
+				   string.Equals(m.Name, "mscorlib", StringComparison.InvariantCultureIgnoreCase);
 		}
 	}
 }

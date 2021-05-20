@@ -550,11 +550,11 @@ namespace ICSharpCode.Decompiler.CSharp
 					{
 						currSPCandidateIndex++;
 					}
-					if (currSPCandidateIndex < sequencePointCandidates.Count && sequencePointCandidates[currSPCandidateIndex - 1] >= currSequencePoint.EndOffset)
-					{
-						nextSequencePoint.Offset = sequencePointCandidates[currSPCandidateIndex - 1];
-						currSPCandidateIndex--;
-					}
+					// if (currSPCandidateIndex < sequencePointCandidates.Count && sequencePointCandidates[currSPCandidateIndex - 1] >= currSequencePoint.EndOffset)
+					// {
+					// 	nextSequencePoint.Offset = sequencePointCandidates[currSPCandidateIndex - 1];
+					// 	currSPCandidateIndex--;
+					// }
 
 					// Fill in any gaps with a hidden sequence point
 					if (currSequencePoint.EndOffset != nextSequencePoint.Offset)
